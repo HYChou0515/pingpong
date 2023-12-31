@@ -4,6 +4,8 @@ go 1.21
 
 require gonum.org/v1/gonum v0.14.0
 
+require github.com/google/uuid v1.5.0 // indirect
+
 require (
 	fyne.io/fyne/v2 v2.4.3
 	fyne.io/systray v1.10.1-0.20231115130155-104f5ef7839e // indirect

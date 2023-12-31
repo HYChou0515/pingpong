@@ -11,114 +11,107 @@ import (
 )
 
 type FyneCanvas struct {
-	Canvas  fyne.Window
-	OffsetX float64
-	OffsetY float64
+	ShapeMap   map[string]fyne.CanvasObject
+	app        fyne.App
+	Window     fyne.Window
+	OffsetX    float64
+	OffsetY    float64
+	WidthUnit  float64 // one unit in the game is how many pixels in the canvas
+	HeightUnit float64 // one unit in the game is how many pixels in the canvas
 }
 
-//func (c *FyneCanvas) RenderRectangle(rect *Rectangle, char string) float64 {
-//	xStart := math.Floor((rect.TopLeft.X-c.OffsetX)/c.CharWidth) - 1
-//	xEnd := math.Ceil((rect.BottomRight.X-c.OffsetX)/c.CharWidth) + 1
-//	yStart := math.Floor((rect.TopLeft.Y-c.OffsetY)/c.CharHeight) - 1
-//	yEnd := math.Ceil((rect.BottomRight.Y-c.OffsetY)/c.CharHeight) + 1
-//	for col := xStart; col <= xEnd; col++ {
-//		for row := yStart; row <= yEnd; row++ {
-//			if col < 0 || row < 0 || col >= float64(len(c.Canvas[0])) || row >= float64(len(c.Canvas)) {
-//				continue
-//			}
-//			charRect := MakeRectangle(
-//				col*c.CharWidth+c.OffsetX,
-//				row*c.CharHeight+c.OffsetY,
-//				(col+1)*c.CharWidth+c.OffsetX,
-//				(row+1)*c.CharHeight+c.OffsetY,
-//			)
-//			if rect.IntersectArea(charRect) > 0 {
-//				c.Canvas[int(row)][int(col)] = char
-//			}
-//		}
-//	}
-//	return 0
-//}
-//
-//func (c *FyneCanvas) RenderCircle(circle *Circle, char string) {
-//	xStart := math.Floor((circle.Center.X-circle.Radius-c.OffsetX)/c.CharWidth) - 1
-//	xEnd := math.Ceil((circle.Center.X+circle.Radius-c.OffsetX)/c.CharWidth) + 1
-//	yStart := math.Floor((circle.Center.Y-circle.Radius-c.OffsetY)/c.CharHeight) - 1
-//	yEnd := math.Ceil((circle.Center.Y+circle.Radius-c.OffsetY)/c.CharHeight) + 1
-//	for col := xStart; col <= xEnd; col++ {
-//		for row := yStart; row <= yEnd; row++ {
-//			if col < 0 || row < 0 || col >= float64(len(c.Canvas[0])) || row >= float64(len(c.Canvas)) {
-//				continue
-//			}
-//			charRect := MakeRectangle(
-//				col*c.CharWidth+c.OffsetX,
-//				row*c.CharHeight+c.OffsetY,
-//				(col+1)*c.CharWidth+c.OffsetX,
-//				(row+1)*c.CharHeight+c.OffsetY,
-//			)
-//			smallerCircle := MakeCircle(
-//				circle.Center.X,
-//				circle.Center.Y,
-//				circle.Radius*0.5,
-//			)
-//			if smallerCircle.Intersect(charRect) {
-//				c.Canvas[int(row)][int(col)] = char
-//			}
-//		}
-//	}
-//}
-//
-//func (c *FyneCanvas) RenderBrick(brick *Brick) {
-//	c.RenderRectangle(brick.Shape, "B")
-//}
-//
-//func (c *FyneCanvas) RenderBall(ball *Ball) {
-//	c.RenderCircle(ball.Shape, "*")
-//}
-//
-//func (c *FyneCanvas) RenderPaddle(paddle *Paddle) {
-//	c.RenderRectangle(paddle.Shape, "=")
-//}
-//
-//func (c *FyneCanvas) RenderWall(wall *Wall) {
-//	c.RenderRectangle(wall.Shape, "W")
-//}
-//
-//func (c *FyneCanvas) RenderBoard(board *Board) {
-//
-//	//c := MakeFyneCanvas(
-//	//	board.Width+6.6,
-//	//	board.Height+6.6,
-//	//	0.4,
-//	//	1.2,
-//	//	-3.3,
-//	//	-3.3,
-//	//)
-//
-//	for _, brick := range board.Bricks {
-//		c.RenderBrick(brick)
-//	}
-//	for _, wall := range board.Wall {
-//		c.RenderWall(wall)
-//	}
-//	c.RenderPaddle(board.Paddle)
-//	c.RenderBall(board.Ball)
-//
-//	for _, row := range c.Canvas {
-//		for _, char := range row {
-//			if char == "" {
-//				print(" ")
-//			} else {
-//				print(char)
-//			}
-//		}
-//		print("\n")
-//	}
-//}
+func (c *FyneCanvas) PositionTransform(gameX float64, gameY float64) (float32, float32) {
+	return float32(gameX*c.WidthUnit - c.OffsetX), float32(gameY*c.HeightUnit - c.OffsetY)
+}
+
+func (c *FyneCanvas) LengthTransform(gameX float64, gameY float64) (float32, float32) {
+	return float32(gameX * c.WidthUnit), float32(gameY * c.HeightUnit)
+}
+
+func (c *FyneCanvas) renderRectangle(canvasObject fyne.CanvasObject, rect *Rectangle) {
+	canvasObject.Move(fyne.NewPos(c.PositionTransform(rect.TopLeft.X, rect.TopLeft.Y)))
+	canvasObject.Resize(fyne.NewSize(c.LengthTransform(rect.BottomRight.X-rect.TopLeft.X, rect.BottomRight.Y-rect.TopLeft.Y)))
+}
+
+func (c *FyneCanvas) renderCircle(canvasObject fyne.CanvasObject, circle *Circle) {
+	canvasObject.Move(fyne.NewPos(c.PositionTransform(circle.Center.X, circle.Center.Y)))
+	canvasObject.Resize(fyne.NewSize(c.LengthTransform(circle.Radius, circle.Radius)))
+}
+
+func (c *FyneCanvas) RenderBrick(brick *Brick) {
+	if _, ok := c.ShapeMap[brick.Id]; !ok {
+		c.ShapeMap[brick.Id] = canvas.NewRectangle(color.NRGBA{R: 255, A: 255})
+	}
+	rect := c.ShapeMap[brick.Id]
+	c.renderRectangle(rect, brick.Shape)
+}
+
+func (c *FyneCanvas) RenderPaddle(paddle *Paddle) {
+	if _, ok := c.ShapeMap[paddle.Id]; !ok {
+		c.ShapeMap[paddle.Id] = canvas.NewRectangle(color.NRGBA{G: 255, A: 255})
+	}
+	rect := c.ShapeMap[paddle.Id]
+	c.renderRectangle(rect, paddle.Shape)
+}
+
+func (c *FyneCanvas) RenderWall(wall *Wall) {
+	if _, ok := c.ShapeMap[wall.Id]; !ok {
+		c.ShapeMap[wall.Id] = canvas.NewRectangle(color.NRGBA{B: 255, A: 255})
+	}
+	rect := c.ShapeMap[wall.Id]
+	c.renderRectangle(rect, wall.Shape)
+}
+
+func (c *FyneCanvas) RenderBall(ball *Ball) {
+	if _, ok := c.ShapeMap[ball.Id]; !ok {
+		c.ShapeMap[ball.Id] = canvas.NewCircle(color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	}
+	rect := c.ShapeMap[ball.Id]
+	c.renderCircle(rect, ball.Shape)
+}
+
+func (c *FyneCanvas) RenderBoard(board *Board) {
+	for _, brick := range board.Bricks {
+		c.RenderBrick(brick)
+	}
+	for _, wall := range board.Wall {
+		c.RenderWall(wall)
+	}
+	c.RenderPaddle(board.Paddle)
+	c.RenderBall(board.Ball)
+}
+
+func (c *FyneCanvas) Show() {
+	// put all ShapeMap objects into container.NewWithoutLayout
+	objects := make([]fyne.CanvasObject, 0)
+	for _, shape := range c.ShapeMap {
+		objects = append(objects, shape)
+	}
+	canvasContainer := container.NewWithoutLayout(objects...)
+	canvasContainer.Resize(fyne.NewSize(400, 400))
+	c.Window.SetContent(canvasContainer)
+	c.Window.ShowAndRun()
+}
+
+func MakeFyneCanvas() *FyneCanvas {
+	myApp := app.New()
+	myWindow := myApp.NewWindow("Window and Status")
+	myWindow.Resize(fyne.NewSize(800, 600))
+
+	return &FyneCanvas{
+		ShapeMap:   make(map[string]fyne.CanvasObject),
+		Window:     myWindow,
+		app:        myApp,
+		OffsetX:    -30,
+		OffsetY:    -30,
+		WidthUnit:  10,
+		HeightUnit: 10,
+	}
+}
 
 func Aaa() {
 	myApp := app.New()
-	myWindow := myApp.NewWindow("Canvas and Status")
+	myWindow := myApp.NewWindow("Window and Status")
 	myWindow.Resize(fyne.NewSize(800, 600))
 
 	// Circle
@@ -136,7 +129,7 @@ func Aaa() {
 	anotherRectangle.Resize(fyne.NewSize(150, 100))
 	anotherRectangle.Move(fyne.NewPos(100, 200))
 
-	// Canvas Container
+	// Window Container
 	canvasContainer := container.NewWithoutLayout(circle, rectangle, anotherRectangle)
 	canvasContainer.Resize(fyne.NewSize(400, 400))
 

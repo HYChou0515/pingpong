@@ -5,5 +5,8 @@ import (
 )
 
 func main() {
-	game.Aaa()
+	canvas := game.MakeFyneCanvas()
+	board := game.ResetBoard()
+	canvas.RenderBoard(board)
+	canvas.Show()
 }

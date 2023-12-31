@@ -2,52 +2,56 @@ package game
 
 import "math"
 
-type AsciiCanvas struct {
-	Canvas     [][]string
-	OffsetX    float64
-	OffsetY    float64
+type AsciiCanvasPlotOptions struct {
+	Width      float64
+	Height     float64
 	CharWidth  float64
 	CharHeight float64
+	OffsetX    float64
+	OffsetY    float64
+
+	BrickColor  string
+	WallColor   string
+	BallColor   string
+	PaddleColor string
+}
+
+type AsciiCanvas struct {
+	Canvas [][]string
+
+	PlotOptions *AsciiCanvasPlotOptions
 }
 
 func MakeAsciiCanvas(
-	windowWidth float64,
-	windowHeight float64,
-	charWidth float64,
-	charHeight float64,
-	OffsetX float64,
-	OffsetY float64,
+	plotOptions *AsciiCanvasPlotOptions,
 ) *AsciiCanvas {
-	charsPerRow := math.Floor(windowWidth / charWidth)
-	charsPerCol := math.Floor(windowHeight / charHeight)
+	charsPerRow := math.Floor(plotOptions.Width / plotOptions.CharWidth)
+	charsPerCol := math.Floor(plotOptions.Height / plotOptions.CharHeight)
 	canvas := make([][]string, int(charsPerCol))
 	for i := range canvas {
 		canvas[i] = make([]string, int(charsPerRow))
 	}
 	return &AsciiCanvas{
-		Canvas:     canvas,
-		OffsetX:    OffsetX,
-		OffsetY:    OffsetY,
-		CharWidth:  charWidth,
-		CharHeight: charHeight,
+		Canvas:      canvas,
+		PlotOptions: plotOptions,
 	}
 }
 
-func (c *AsciiCanvas) RenderRectangle(rect *Rectangle, char string) float64 {
-	xStart := math.Floor((rect.TopLeft.X-c.OffsetX)/c.CharWidth) - 1
-	xEnd := math.Ceil((rect.BottomRight.X-c.OffsetX)/c.CharWidth) + 1
-	yStart := math.Floor((rect.TopLeft.Y-c.OffsetY)/c.CharHeight) - 1
-	yEnd := math.Ceil((rect.BottomRight.Y-c.OffsetY)/c.CharHeight) + 1
+func (c *AsciiCanvas) renderRectangle(rect *Rectangle, char string) float64 {
+	xStart := math.Floor((rect.TopLeft.X-c.PlotOptions.OffsetX)/c.PlotOptions.CharWidth) - 1
+	xEnd := math.Ceil((rect.BottomRight.X-c.PlotOptions.OffsetX)/c.PlotOptions.CharWidth) + 1
+	yStart := math.Floor((rect.TopLeft.Y-c.PlotOptions.OffsetY)/c.PlotOptions.CharHeight) - 1
+	yEnd := math.Ceil((rect.BottomRight.Y-c.PlotOptions.OffsetY)/c.PlotOptions.CharHeight) + 1
 	for col := xStart; col <= xEnd; col++ {
 		for row := yStart; row <= yEnd; row++ {
 			if col < 0 || row < 0 || col >= float64(len(c.Canvas[0])) || row >= float64(len(c.Canvas)) {
 				continue
 			}
 			charRect := MakeRectangle(
-				col*c.CharWidth+c.OffsetX,
-				row*c.CharHeight+c.OffsetY,
-				(col+1)*c.CharWidth+c.OffsetX,
-				(row+1)*c.CharHeight+c.OffsetY,
+				col*c.PlotOptions.CharWidth+c.PlotOptions.OffsetX,
+				row*c.PlotOptions.CharHeight+c.PlotOptions.OffsetY,
+				(col+1)*c.PlotOptions.CharWidth+c.PlotOptions.OffsetX,
+				(row+1)*c.PlotOptions.CharHeight+c.PlotOptions.OffsetY,
 			)
 			if rect.IntersectArea(charRect) > 0 {
 				c.Canvas[int(row)][int(col)] = char
@@ -57,21 +61,21 @@ func (c *AsciiCanvas) RenderRectangle(rect *Rectangle, char string) float64 {
 	return 0
 }
 
-func (c *AsciiCanvas) RenderCircle(circle *Circle, char string) {
-	xStart := math.Floor((circle.Center.X-circle.Radius-c.OffsetX)/c.CharWidth) - 1
-	xEnd := math.Ceil((circle.Center.X+circle.Radius-c.OffsetX)/c.CharWidth) + 1
-	yStart := math.Floor((circle.Center.Y-circle.Radius-c.OffsetY)/c.CharHeight) - 1
-	yEnd := math.Ceil((circle.Center.Y+circle.Radius-c.OffsetY)/c.CharHeight) + 1
+func (c *AsciiCanvas) renderCircle(circle *Circle, char string) {
+	xStart := math.Floor((circle.Center.X-circle.Radius-c.PlotOptions.OffsetX)/c.PlotOptions.CharWidth) - 1
+	xEnd := math.Ceil((circle.Center.X+circle.Radius-c.PlotOptions.OffsetX)/c.PlotOptions.CharWidth) + 1
+	yStart := math.Floor((circle.Center.Y-circle.Radius-c.PlotOptions.OffsetY)/c.PlotOptions.CharHeight) - 1
+	yEnd := math.Ceil((circle.Center.Y+circle.Radius-c.PlotOptions.OffsetY)/c.PlotOptions.CharHeight) + 1
 	for col := xStart; col <= xEnd; col++ {
 		for row := yStart; row <= yEnd; row++ {
 			if col < 0 || row < 0 || col >= float64(len(c.Canvas[0])) || row >= float64(len(c.Canvas)) {
 				continue
 			}
 			charRect := MakeRectangle(
-				col*c.CharWidth+c.OffsetX,
-				row*c.CharHeight+c.OffsetY,
-				(col+1)*c.CharWidth+c.OffsetX,
-				(row+1)*c.CharHeight+c.OffsetY,
+				col*c.PlotOptions.CharWidth+c.PlotOptions.OffsetX,
+				row*c.PlotOptions.CharHeight+c.PlotOptions.OffsetY,
+				(col+1)*c.PlotOptions.CharWidth+c.PlotOptions.OffsetX,
+				(row+1)*c.PlotOptions.CharHeight+c.PlotOptions.OffsetY,
 			)
 			smallerCircle := MakeCircle(
 				circle.Center.X,
@@ -86,19 +90,19 @@ func (c *AsciiCanvas) RenderCircle(circle *Circle, char string) {
 }
 
 func (c *AsciiCanvas) RenderBrick(brick *Brick) {
-	c.RenderRectangle(brick.Shape, "B")
+	c.renderRectangle(brick.Shape, c.PlotOptions.BrickColor)
 }
 
 func (c *AsciiCanvas) RenderBall(ball *Ball) {
-	c.RenderCircle(ball.Shape, "*")
+	c.renderCircle(ball.Shape, c.PlotOptions.BallColor)
 }
 
 func (c *AsciiCanvas) RenderPaddle(paddle *Paddle) {
-	c.RenderRectangle(paddle.Shape, "=")
+	c.renderRectangle(paddle.Shape, c.PlotOptions.PaddleColor)
 }
 
 func (c *AsciiCanvas) RenderWall(wall *Wall) {
-	c.RenderRectangle(wall.Shape, "W")
+	c.renderRectangle(wall.Shape, c.PlotOptions.WallColor)
 }
 
 func (c *AsciiCanvas) RenderBoard(board *Board) {
